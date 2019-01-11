@@ -32,7 +32,6 @@ using Prediction = std::pair<int, float>;
 /*
   Predictor class takes in model file (converted into .tflite from the original .pb file
   using tflite_convert CLI tool), batch size and device mode for inference
-  TODO enable accelerator device modes
 */
 class Predictor {
   public:
@@ -46,27 +45,17 @@ class Predictor {
     int mode_ = 0;
     profile *prof_{nullptr};
     bool profile_enabled_{false};
-    int result_;
+    TfLiteTensor* result_;
 };
 
 Predictor::Predictor(const string &model_file, int batch, int mode) {
   /* Load the network. */
-  // Tflite uses FlatBufferModel format to
-  // store/access model instead of protobuf
-  // unlike tensorflow
+  // Tflite uses FlatBufferModel format to store/access model instead of 
+	// protobuf unlike tensorflow
   net_ = tflite::FlatBufferModel::BuildFromFile(model_file);
   assert(net_ != nullptr);
   mode_ = mode;
-
-  // TODO should fetch width and height from model
-
-  width_ = 224;
-  height_ = 224;
-  channels_ = 3;
   batch_ = batch;
-
-  CHECK(channels_ == 3 || channels_ == 1) << "Input layer should have 1 or 3 channels.";
-
 }
 
 void Predictor::Predict(float* inputData) {
@@ -83,21 +72,35 @@ void Predictor::Predict(float* inputData) {
 	builder(&interpreter);
 	assert(interpreter != nullptr);
 
+	// set number of threads to 1 for now
+	interpreter->SetNumThreads(1);
+
 	// allocate tensor buffers
 	if(!(interpreter->AllocateTensors() == kTfLiteOk)) {
 		fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__);
 		exit(1);
 	}
 
-	// TODO fill input buffers
+	// fill input buffers
+	const int input = interpreter->inputs()[0];
+	TfLiteTensor* input_tensor = interpreter->tensor(input);
+	TfLiteIntArray* input_dims = input_tensor->dims;
+	width_ = input_dims->data[1];
+	height_ = input_dims->data[2];
+	channels_ = input_dims->data[3];
+
+	assert(input_dims->size == 4);
+	const int size = batch_ * width_ * height_ * channels_;
+	memcpy(input_tensor.f, inputData[0], size);
+
+	const int output = interpreter->outputs()[0];
+	result_ = interpreter->tensor(output);
 
 	// run inference
 	if(!(interpreter->Invoke() == kTfLiteOk)) {
 		fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__);
 		exit(1);
 	}
-
-	// TODO read output buffers into result_
 
 }
 
@@ -121,7 +124,7 @@ PredictorContext NewTflite(char *model_file, int batch,
 
 void SetModeTflite(int mode) {
   if(mode == 1) {
-		// TODO set accelerator here
+		// Do nothing as of now
   }
 }
 
@@ -142,7 +145,7 @@ const float*GetPredictionsTflite(PredictorContext pred) {
     return nullptr;
   }
 
-  return predictor->result_.data<float>();
+  return predictor->result_->data.f;
 }
 
 void DeleteTflite(PredictorContext pred) {
@@ -187,7 +190,7 @@ int GetPredLenTflite(PredictorContext pred) {
   if (predictor == nullptr) {
     return 0;
   }
-  predictor->pred_len_ = predictor->result_.size(1);
+  predictor->pred_len_ = predictor->result_->dims->size;
   return predictor->pred_len_;
 }
 
