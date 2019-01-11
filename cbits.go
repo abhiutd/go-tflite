@@ -108,7 +108,7 @@ func (p *Predictor) ReadPredictionOutput(ctx context.Context) ([]float32, error)
 	defer span.Finish()
 
 	batchSize := p.options.BatchSize()
-	predLen := int(C.GetPredLenPytorch(p.ctx))
+	predLen := int(C.GetPredLenTflite(p.ctx))
 	length := batchSize * predLen
 
 	cPredictions := C.GetPredictionsTflite(p.ctx)

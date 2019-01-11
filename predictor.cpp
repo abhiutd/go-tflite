@@ -8,10 +8,10 @@
 #include <vector>
 #include <iostream>
 
-#include "tensorflow/lite/interpreter.h"
-#include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/model.h"
-#include "tensorflow/lite/optional_debug_tools.h"
+#include "tensorflow/contrib/lite/interpreter.h"
+#include "tensorflow/contrib/lite/kernels/register.h"
+#include "tensorflow/contrib/lite/model.h"
+#include "tensorflow/contrib/lite/optional_debug_tools.h"
 
 #include "predictor.hpp"
 #include "timer.h"
@@ -52,7 +52,8 @@ Predictor::Predictor(const string &model_file, int batch, int mode) {
   /* Load the network. */
   // Tflite uses FlatBufferModel format to store/access model instead of 
 	// protobuf unlike tensorflow
-  net_ = tflite::FlatBufferModel::BuildFromFile(model_file);
+  char* model_file_char = const_cast<char*>(model_file.c_str());
+	net_ = tflite::FlatBufferModel::BuildFromFile(model_file_char);
   assert(net_ != nullptr);
   mode_ = mode;
   batch_ = batch;
@@ -67,9 +68,8 @@ void Predictor::Predict(float* inputData) {
 	// Also, one can add customized operators by rebuilding
 	// thge resolver with their own operator definitions
 	tflite::ops::builtin::BuiltinOpResolver resolver;
-	InterpreterBuilder builder(net_, resolver);
-	std::unique_ptr<Interpreter> interpreter;
-	builder(&interpreter);
+	std::unique_ptr<tflite::Interpreter> interpreter;
+	tflite::InterpreterBuilder(*net_, resolver)(&interpreter);
 	assert(interpreter != nullptr);
 
 	// set number of threads to 1 for now
@@ -91,7 +91,7 @@ void Predictor::Predict(float* inputData) {
 
 	assert(input_dims->size == 4);
 	const int size = batch_ * width_ * height_ * channels_;
-	memcpy(input_tensor.f, inputData[0], size);
+	memcpy(input_tensor->data.f, &inputData[0], size);
 
 	const int output = interpreter->outputs()[0];
 	result_ = interpreter->tensor(output);
@@ -115,7 +115,7 @@ PredictorContext NewTflite(char *model_file, int batch,
                                    mode_temp);
     return (void *)ctx;
   } catch (const std::invalid_argument &ex) {
-    LOG(ERROR) << "exception: " << ex.what();
+    //LOG(ERROR) << "exception: " << ex.what();
     errno = EINVAL;
     return nullptr;
   }

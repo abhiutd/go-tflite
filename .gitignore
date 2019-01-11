@@ -1,0 +1,14 @@
+*.d
+*.o
+
+*.DS_Store
+tmp
+vendor
+_obj
+cifar-test-leveldb
+
+*.nvprof
+.vscode
+
+batch
+single
