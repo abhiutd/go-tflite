@@ -8,6 +8,11 @@
 #include <vector>
 #include <iostream>
 
+#include "tensorflow/lite/interpreter.h"
+#include "tensorflow/lite/kernels/register.h"
+#include "tensorflow/lite/model.h"
+#include "tensorflow/lite/optional_debug_tools.h"
+
 #include "predictor.hpp"
 #include "timer.h"
 #include "timer.impl.hpp"
@@ -18,45 +23,42 @@
 #define DEBUG_STMT
 #endif
 
+using namespace tflite;
 using std::string;
 
 /* Pair (label, confidence) representing a prediction. */
 using Prediction = std::pair<int, float>;
 
 /*
-  Predictor class takes in one module file (exported using torch JIT compiler)
-  , batch size and device mode for inference
+  Predictor class takes in model file (converted into .tflite from the original .pb file
+  using tflite_convert CLI tool), batch size and device mode for inference
+  TODO enable accelerator device modes
 */
 class Predictor {
   public:
-    Predictor(const string &model_file, int batch, torch::DeviceType mode);
+    Predictor(const string &model_file, int batch, int mode);
     void Predict(float* inputData);
 
-    std::shared_ptr<torch::jit::script::Module> net_;
+    std::unique_ptr<tflite::FlatBufferModel> net_;
     int width_, height_, channels_;
     int batch_;
     int pred_len_;
-    torch::DeviceType mode_{torch::kCPU};
+    int mode_ = 0;
     profile *prof_{nullptr};
     bool profile_enabled_{false};
-    at::Tensor result_;
+    int result_;
 };
 
-Predictor::Predictor(const string &model_file, int batch, torch::DeviceType mode) {
+Predictor::Predictor(const string &model_file, int batch, int mode) {
   /* Load the network. */
-  // In pytorch, a loaded module in c++ is given 
-  // type torch::jit::script::Module as it has been
-  // ported from python/c++ via pytorch's JIT compiler
-  net_ = torch::jit::load(model_file);
+  // Tflite uses FlatBufferModel format to
+  // store/access model instead of protobuf
+  // unlike tensorflow
+  net_ = tflite::FlatBufferModel::BuildFromFile(model_file);
   assert(net_ != nullptr);
   mode_ = mode;
 
   // TODO should fetch width and height from model
-  //const torch::detail::OrderedDict<std::string, torch::jit::script::NamedModule>& net_module_dict = net_->get_modules();
-  //size_t net_module_dict_size = net_module_dict.size();
-  //CHECK((int)net_module_dict_size == 1) << "Number of modules - " << (int)net_module_dict_size;  
-  //const torch::jit::script::NamedModule& temp = net_module_dict.get("fc1"); 
-  //temp.module->get_method("fc1_script");  
 
   width_ = 224;
   height_ = 224;
@@ -69,43 +71,44 @@ Predictor::Predictor(const string &model_file, int batch, torch::DeviceType mode
 
 void Predictor::Predict(float* inputData) {
 
-  std::vector<int64_t> sizes = {1, 3, width_, height_};
-  at::TensorOptions options(at::kFloat);
-  at::Tensor tensor_image = torch::from_blob(inputData, at::IntList(sizes), options);
+	// build interpreter
+	// Note: one can have multiple interpreters running the same FlatBuffer
+	// model, therefore, we create an interpeter for every call of Predict()
+	// rather than one for the Predictor
+	// Also, one can add customized operators by rebuilding
+	// thge resolver with their own operator definitions
+	tflite::ops::builtin::BuiltinOpResolver resolver;
+	InterpreterBuilder builder(net_, resolver);
+	std::unique_ptr<Interpreter> interpreter;
+	builder(&interpreter);
+	assert(interpreter != nullptr);
 
-  std::vector<torch::jit::IValue> inputs;
+	// allocate tensor buffers
+	if(!(interpreter->AllocateTensors() == kTfLiteOk)) {
+		fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__);
+		exit(1);
+	}
 
-  // check if mode is set to GPU
-  if(mode_ == torch::kCUDA) {
-    // port model to GPU
-    net_->to(at::kCUDA);
-    // port input to GPU
-    at::Tensor tensor_image_cuda = tensor_image.to(at::kCUDA);
-    // emplace IValue input
-    inputs.emplace_back(tensor_image_cuda);
-    // execute model
-    result_ = net_->forward(inputs).toTensor();
-  }else {
-    // emplace IValue input
-    inputs.emplace_back(tensor_image);
-    // execute model
-    result_ = net_->forward(inputs).toTensor();
-  }
-  
-  // port output back to CPU
-  result_ = result_.to(at::kCPU);
+	// TODO fill input buffers
 
+	// run inference
+	if(!(interpreter->Invoke() == kTfLiteOk)) {
+     fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__);
+     exit(1);
+   }
+
+	 // TODO read output buffers into result_
 }
 
-PredictorContext NewPytorch(char *model_file, int batch,
+PredictorContext NewTflite(char *model_file, int batch,
                           int mode) {
   try {
-    torch::DeviceType mode_temp{at::kCPU};
+    int mode_temp = 0;
     if (mode == 1) {
-      mode_temp = at::kCUDA;
+      mode_temp = 1;
     }
     const auto ctx = new Predictor(model_file, batch,
-                                   (torch::DeviceType)mode_temp);
+                                   mode_temp);
     return (void *)ctx;
   } catch (const std::invalid_argument &ex) {
     LOG(ERROR) << "exception: " << ex.what();
@@ -115,16 +118,15 @@ PredictorContext NewPytorch(char *model_file, int batch,
 
 }
 
-void SetModePytorch(int mode) {
+void SetModeTflite(int mode) {
   if(mode == 1) {
-    // TODO set device here ?
-    torch::Device device(torch::kCUDA);
+		// TODO set accelerator here
   }
 }
 
-void InitPytorch() {}
+void InitTflite() {}
 
-void PredictPytorch(PredictorContext pred, float* inputData) {
+void PredictTflite(PredictorContext pred, float* inputData) {
   auto predictor = (Predictor *)pred;
   if (predictor == nullptr) {
     return;
@@ -133,7 +135,7 @@ void PredictPytorch(PredictorContext pred, float* inputData) {
   return;
 }
 
-const float*GetPredictionsPytorch(PredictorContext pred) {
+const float*GetPredictionsTflite(PredictorContext pred) {
   auto predictor = (Predictor *)pred;
   if (predictor == nullptr) {
     return nullptr;
@@ -142,7 +144,7 @@ const float*GetPredictionsPytorch(PredictorContext pred) {
   return predictor->result_.data<float>();
 }
 
-void DeletePytorch(PredictorContext pred) {
+void DeleteTflite(PredictorContext pred) {
   auto predictor = (Predictor *)pred;
   if (predictor == nullptr) {
     return;
@@ -155,7 +157,7 @@ void DeletePytorch(PredictorContext pred) {
   delete predictor;
 }
 
-int GetWidthPytorch(PredictorContext pred) {
+int GetWidthTflite(PredictorContext pred) {
   auto predictor = (Predictor *)pred;
   if (predictor == nullptr) {
     return 0;
@@ -163,7 +165,7 @@ int GetWidthPytorch(PredictorContext pred) {
   return predictor->width_;
 }
 
-int GetHeightPytorch(PredictorContext pred) {
+int GetHeightTflite(PredictorContext pred) {
   auto predictor = (Predictor *)pred;
   if (predictor == nullptr) {
     return 0;
@@ -171,7 +173,7 @@ int GetHeightPytorch(PredictorContext pred) {
   return predictor->height_;
 }
 
-int GetChannelsPytorch(PredictorContext pred) {
+int GetChannelsTflite(PredictorContext pred) {
   auto predictor = (Predictor *)pred;
   if (predictor == nullptr) {
     return 0;
@@ -179,7 +181,7 @@ int GetChannelsPytorch(PredictorContext pred) {
   return predictor->channels_;
 }
 
-int GetPredLenPytorch(PredictorContext pred) {
+int GetPredLenTflite(PredictorContext pred) {
   auto predictor = (Predictor *)pred;
   if (predictor == nullptr) {
     return 0;
