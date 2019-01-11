@@ -93,11 +93,12 @@ void Predictor::Predict(float* inputData) {
 
 	// run inference
 	if(!(interpreter->Invoke() == kTfLiteOk)) {
-     fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__);
-     exit(1);
-   }
+		fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__);
+		exit(1);
+	}
 
-	 // TODO read output buffers into result_
+	// TODO read output buffers into result_
+
 }
 
 PredictorContext NewTflite(char *model_file, int batch,
