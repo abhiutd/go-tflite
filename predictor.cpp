@@ -14,8 +14,6 @@
 #include "tensorflow/contrib/lite/optional_debug_tools.h"
 
 #include "predictor.hpp"
-#include "timer.h"
-#include "timer.impl.hpp"
 
 #if 0
 #define DEBUG_STMT std ::cout << __func__ << "  " << __LINE__ << "\n";
@@ -43,8 +41,6 @@ class Predictor {
     int batch_;
     int pred_len_;
     int mode_ = 0;
-    profile *prof_{nullptr};
-    bool profile_enabled_{false};
     TfLiteTensor* result_;
 };
 
@@ -152,11 +148,6 @@ void DeleteTflite(PredictorContext pred) {
   auto predictor = (Predictor *)pred;
   if (predictor == nullptr) {
     return;
-  }
-  if (predictor->prof_) {
-    predictor->prof_->reset();
-    delete predictor->prof_;
-    predictor->prof_ = nullptr;
   }
   delete predictor;
 }

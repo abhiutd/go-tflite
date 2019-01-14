@@ -3,7 +3,6 @@
 
 *.DS_Store
 tmp
-vendor
 _obj
 cifar-test-leveldb
 
