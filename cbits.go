@@ -39,17 +39,7 @@ func New(ctx context.Context, opts ...options.Option) (*Predictor, error) {
 	}
 
 	mode := CPUMode
-    SetUseCPU()
-    // TODO enable using accelerators
-    /*if options.UsesGPU() {
-		if !nvidiasmi.HasGPU {
-			return nil, errors.New("no GPU device")
-		}
-		SetUseGPU()
-		mode = GPUMode
-	} else {
-		SetUseCPU()
-	}*/
+  SetUseCPU()
 
 	return &Predictor{
 		ctx: C.NewTflite(
