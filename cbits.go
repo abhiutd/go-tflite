@@ -30,6 +30,17 @@ type Metadata struct {
 	batch	int
 }
 
+// make all fields public
+func (md *Metadata) Inc() {
+	//md.model++
+	md.mode++
+	md.batch++
+}
+
+func NewMetadata() *Metadata {
+    return &Metadata{}
+}
+
 // struct for keeping hold of predictor
 type Predictordata struct {
 	ctx	C.PredictorContext
@@ -37,11 +48,32 @@ type Predictordata struct {
 	batch	int
 }
 
+// make all mode and batch public
+func (pd *Predictordata) Inc() {
+   pd.mode++
+   pd.batch++
+}
+
+func NewPredictordata() *Predictordata {
+     return &Predictordata{}
+}
+
 // struct for passing image data
 type Imagedata struct {
 	image	string
 	datatype	string
 	misc	string
+}
+
+// make all fields public
+func (id *Imagedata) Inc() {
+   //id.image++
+   //id.datatype++
+   //id.misc++
+}
+
+func NewImagedata() *Imagedata {
+     return &Imagedata{}
 }
 
 // Note: for internal use only
