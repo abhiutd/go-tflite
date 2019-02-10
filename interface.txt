@@ -1,5 +1,15 @@
 // refer to ./cbits.go for mobile app callable functions
 
+// exported functions
+New()
+SetUseCPU()
+SetUseGPU()
+SetUseDSP()
+SetUseVisualCore()
+Predict()
+ReadPredictionOutput()
+Close()
+
 // accelerator modes
 CPUMode=0
 GPUMode=1

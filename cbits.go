@@ -17,12 +17,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-// TODO add specific accelerator modes
+// accelerator modes
 const (
 	CPUMode = 0
 	GPUMode = 1
 	DSPMode = 2
-	VisualCore = 3
+	VisualCoreMode = 3
 )
 
 // struct for keeping hold of predictor
