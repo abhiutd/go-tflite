@@ -21,59 +21,25 @@ import (
 const (
 	CPUMode = 0
 	GPUMode = 1
+	DSPMode = 2
+	VisualCore = 3
 )
 
-// struct for passing metadata
-type Metadata struct {
-	model	string
-	mode	int
-	batch	int
-}
-
-// make all fields public
-func (md *Metadata) Inc() {
-	//md.model++
-	md.mode++
-	md.batch++
-}
-
-func NewMetadata() *Metadata {
-    return &Metadata{}
-}
-
 // struct for keeping hold of predictor
-type Predictordata struct {
+type PredictorData struct {
 	ctx	C.PredictorContext
 	mode	int
 	batch	int
 }
 
-// make all mode and batch public
-func (pd *Predictordata) Inc() {
+// make mode and batch public
+func (pd *PredictorData) Inc() {
    pd.mode++
    pd.batch++
 }
 
-func NewPredictordata() *Predictordata {
-     return &Predictordata{}
-}
-
-// struct for passing image data
-type Imagedata struct {
-	image	string
-	datatype	string
-	misc	string
-}
-
-// make all fields public
-func (id *Imagedata) Inc() {
-   //id.image++
-   //id.datatype++
-   //id.misc++
-}
-
-func NewImagedata() *Imagedata {
-     return &Imagedata{}
+func NewPredictorData() *PredictorData {
+     return &PredictorData{}
 }
 
 // Note: for internal use only
@@ -126,20 +92,29 @@ func preprocessImage(imageFile string, batchSize int) ([]float32, error) {
 	return input, nil
 }
 
-func New(metadata *Metadata) (*Predictordata, error) {
+func New(model string, mode, batch int) (*PredictorData, error) {
 
 	// fetch model file
-	modelFile := metadata.model
+	modelFile := model
 	if !com.IsFile(modelFile) {
 		return nil, errors.Errorf("file %s not found", modelFile)
 	}
-	// determine device
-	mode := metadata.mode
-  SetUseCPU()
-	// determine batch size
-	batch := metadata.batch
 
-	return &Predictordata{
+	// set device for acceleration
+	switch mode {
+	case 0:
+		SetUseCPU()
+	case 1:
+		SetUseGPU()
+	case 2:
+		SetUseDSP()
+	case 3:
+		SetUseVisualCore()
+	default:
+		SetUseCPU()
+	}
+
+	return &PredictorData{
 		ctx: C.NewTflite(
 			C.CString(modelFile),
 			C.int(batch),
@@ -158,14 +133,22 @@ func SetUseGPU() {
 	C.SetModeTflite(C.int(GPUMode))
 }
 
+func SetUseDSP() {
+   C.SetModeTflite(C.int(DSPMode))
+ }
+
+func SetUseVisualCore() {
+   C.SetModeTflite(C.int(VisualCoreMode))
+}
+
 func init() {
 	C.InitTflite()
 }
 
-func Predict(p *Predictordata, imagedata *Imagedata) error {
+func Predict(p *PredictorData, image string) error {
 
 	// check for null imagedata
-	if len(imagedata.image) == 0 {
+	if len(image) == 0 {
 		return fmt.Errorf("input image filepath is empty")
 	}
 
@@ -176,7 +159,7 @@ func Predict(p *Predictordata, imagedata *Imagedata) error {
 	shapeLen := int(width * height * channels)
 
 	// preprocess input image
-	data, err := preprocessImage(imagedata.image, batchSize)
+	data, err := preprocessImage(image, batchSize)
 	if err != nil {
 		panic(err)
 	}
@@ -198,7 +181,7 @@ func Predict(p *Predictordata, imagedata *Imagedata) error {
 }
 
 // TODO return predicted class (as in do the postprocessing here itself)
-func ReadPredictionOutput(p *Predictordata) (float32, error) {
+func ReadPredictionOutput(p *PredictorData) (float32, error) {
 
 	batchSize := p.batch
 	predLen := int(C.GetPredLenTflite(p.ctx))
@@ -215,6 +198,6 @@ func ReadPredictionOutput(p *Predictordata) (float32, error) {
 	return slice[3], nil
 }
 
-func Close(p *Predictordata) {
+func Close(p *PredictorData) {
 	C.DeleteTflite(p.ctx)
 }
