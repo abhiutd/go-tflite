@@ -12,7 +12,7 @@ import (
 
 	"github.com/anthonynsimon/bild/imgio"
   "github.com/anthonynsimon/bild/transform"
-	//"github.com/Unknwon/com"
+	"github.com/Unknwon/com"
 	"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
 )
@@ -92,13 +92,13 @@ func preprocessImage(imageFile string, batchSize int) ([]float32, error) {
 	return input, nil
 }
 
-func New(model []byte, mode, batch int) (*PredictorData, error) {
+func New(model string, mode, batch int) (*PredictorData, error) {
 
 	// fetch model file
-	//modelFile := model
-	//if !com.IsFile(modelFile) {
-	//	return nil, errors.Errorf("file %s not found", modelFile)
-	//}
+	modelFile := model
+	if !com.IsFile(modelFile) {
+		return nil, errors.Errorf("file %s not found", modelFile)
+	}
 
 	// set device for acceleration
 	switch mode {
@@ -114,11 +114,9 @@ func New(model []byte, mode, batch int) (*PredictorData, error) {
 		SetUseCPU()
 	}
 
-	modelFile := (*C.char)(unsafe.Pointer(&model[0]))
-
 	return &PredictorData{
 		ctx: C.NewTflite(
-			modelFile,
+			C.CString(modelFile),
 			C.int(batch),
 			C.int(mode),
 		),
