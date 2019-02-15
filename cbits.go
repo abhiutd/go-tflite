@@ -12,7 +12,7 @@ import (
 
 	"github.com/anthonynsimon/bild/imgio"
   "github.com/anthonynsimon/bild/transform"
-	"github.com/Unknwon/com"
+	//"github.com/Unknwon/com"
 	"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
 )
@@ -92,13 +92,13 @@ func preprocessImage(imageFile string, batchSize int) ([]float32, error) {
 	return input, nil
 }
 
-func New(model string, mode, batch int) (*PredictorData, error) {
+func New(model []byte, mode, batch int) (*PredictorData, error) {
 
 	// fetch model file
-	modelFile := model
-	if !com.IsFile(modelFile) {
-		return nil, errors.Errorf("file %s not found", modelFile)
-	}
+	//modelFile := model
+	//if !com.IsFile(modelFile) {
+	//	return nil, errors.Errorf("file %s not found", modelFile)
+	//}
 
 	// set device for acceleration
 	switch mode {
@@ -114,9 +114,11 @@ func New(model string, mode, batch int) (*PredictorData, error) {
 		SetUseCPU()
 	}
 
+	modelFile := (*C.char)(unsafe.Pointer(&model[0]))
+
 	return &PredictorData{
 		ctx: C.NewTflite(
-			C.CString(modelFile),
+			modelFile,
 			C.int(batch),
 			C.int(mode),
 		),
@@ -145,33 +147,31 @@ func init() {
 	C.InitTflite()
 }
 
-func Predict(p *PredictorData, image string) error {
+func Predict(p *PredictorData, data []byte) error {
 
 	// check for null imagedata
-	if len(image) == 0 {
-		return fmt.Errorf("input image filepath is empty")
+	if len(data) == 0 {
+		return fmt.Errorf("image data is empty")
 	}
 
-	batchSize := p.batch
-	width := C.GetWidthTflite(p.ctx)
-	height := C.GetHeightTflite(p.ctx)
-	channels := C.GetChannelsTflite(p.ctx)
-	shapeLen := int(width * height * channels)
-
+	//batchSize := p.batch
+	//width := C.GetWidthTflite(p.ctx)
+	//height := C.GetHeightTflite(p.ctx)
+	//channels := C.GetChannelsTflite(p.ctx)
+	//shapeLen := int(width * height * channels)
 	// preprocess input image
-	data, err := preprocessImage(image, batchSize)
-	if err != nil {
-		panic(err)
-	}
-
+	//data, err := preprocessImage(image, batchSize)
+	//if err != nil {
+	//	panic(err)
+	//}
 	// pad input image if needed
-	dataLen := len(data)
-
-	inputCount := dataLen / shapeLen
-	if batchSize > inputCount {
-		padding := make([]float32, (batchSize-inputCount)*shapeLen)
-		data = append(data, padding...)
-	}
+	//dataLen := len(data)
+	//inputCount := dataLen / shapeLen
+	//if batchSize > inputCount {
+	//	padding := make([]float32, (batchSize-inputCount)*shapeLen)
+	//	data = append(data, padding...)
+	//}
+	//ptr := (*C.float)(unsafe.Pointer(&data[0]))
 
 	ptr := (*C.float)(unsafe.Pointer(&data[0]))
 

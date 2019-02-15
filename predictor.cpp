@@ -13,6 +13,9 @@
 #include "tensorflow/contrib/lite/model.h"
 #include "tensorflow/contrib/lite/optional_debug_tools.h"
 
+// ISSUE: would make it tensorflow specific 
+//#include "tensorflow/contrib/android/asset_manager_filesystem.cc"
+
 #include "predictor.hpp"
 
 #if 0
@@ -33,7 +36,7 @@ using Prediction = std::pair<int, float>;
 */
 class Predictor {
   public:
-    Predictor(const string &model_file, int batch, int mode);
+    Predictor(char* model_file, int batch, int mode);
     void Predict(float* inputData);
 
     std::unique_ptr<tflite::FlatBufferModel> net_;
@@ -44,12 +47,16 @@ class Predictor {
     TfLiteTensor* result_;
 };
 
-Predictor::Predictor(const string &model_file, int batch, int mode) {
+Predictor::Predictor(char* model_file, int batch, int mode) {
   /* Load the network. */
   // Tflite uses FlatBufferModel format to store/access model instead of 
 	// protobuf unlike tensorflow
-  char* model_file_char = const_cast<char*>(model_file.c_str());
-	net_ = tflite::FlatBufferModel::BuildFromFile(model_file_char);
+  // Building from file path (not feasible directly, may have to load from
+	// assets, store it at some other location and if possible pass that path)
+	//char* model_file_char = const_cast<char*>(model_file.c_str());
+	//net_ = tflite::FlatBufferModel::BuildFromFile(model_file_char);
+
+	net_ = tflite::FlatBufferModel::BuildFromBuffer(model_file, strlen(model_file));
   assert(net_ != nullptr);
   mode_ = mode;
   batch_ = batch;
@@ -100,7 +107,7 @@ void Predictor::Predict(float* inputData) {
 
 }
 
-PredictorContext NewTflite(char *model_file, int batch,
+PredictorContext NewTflite(char* model_file, int batch,
                           int mode) {
   try {
     int mode_temp = 0;
