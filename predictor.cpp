@@ -42,7 +42,7 @@ class Predictor {
     std::unique_ptr<tflite::FlatBufferModel> net_;
     int width_, height_, channels_;
     int batch_;
-    int pred_len_;
+    int pred_len_ = 0;
     int mode_ = 0;
     TfLiteTensor* result_;
 };
@@ -105,6 +105,13 @@ void Predictor::Predict(float* inputData) {
 		fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__);
 		exit(1);
 	}
+
+	//pred_len_ = result_->size/batch_;
+	// Note: TfLiteTensor does not provide a size() API call
+	// which means we have to fetch the number of bytes the tensor
+	// has and divide it by 4 since we assume float is 4 bytes long
+	// Potential Bug location
+	pred_len_ = result_->bytes/(4*batch_);
 
 }
 
@@ -189,7 +196,7 @@ int GetPredLenTflite(PredictorContext pred) {
   if (predictor == nullptr) {
     return 0;
   }
-  predictor->pred_len_ = predictor->result_->dims->size;
+  //predictor->pred_len_ = predictor->result_->dims->size;
   return predictor->pred_len_;
 }
 

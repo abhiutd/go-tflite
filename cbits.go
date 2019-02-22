@@ -9,12 +9,17 @@ import (
 	"unsafe"
 	"image"
 	"path/filepath"
+	"sort"
+	"os"
+	"bufio"
 
 	"github.com/anthonynsimon/bild/imgio"
   "github.com/anthonynsimon/bild/transform"
 	"github.com/Unknwon/com"
-	"github.com/k0kubun/pp"
+	//"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
+	"github.com/rai-project/dlframework/framework/feature"
+
 )
 
 // accelerator modes
@@ -178,8 +183,8 @@ func Predict(p *PredictorData, data []byte) error {
 	return nil
 }
 
-// TODO return predicted class (as in do the postprocessing here itself)
-func ReadPredictionOutput(p *PredictorData) (float32, error) {
+// return predicted class (meaning do the postprocessing here itself)
+func ReadPredictionOutput(p *PredictorData, labelFile string) (int32, error) {
 
 	batchSize := p.batch
 	predLen := int(C.GetPredLenTflite(p.ctx))
@@ -191,9 +196,44 @@ func ReadPredictionOutput(p *PredictorData) (float32, error) {
 	}
 
 	slice := (*[1 << 15]float32)(unsafe.Pointer(cPredictions))[:length:length]
-	pp.Println(slice[:2])
+	// get the labelist file location passed as part of the function signature
+	var labels []string
+	f, err := os.Open(labelFile)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		labels := append(labels, line)
+	}
 
-	return slice[3], nil
+	features := make([]dlframework.Features, batchSize)
+  featuresLen := len(output) / batchSize
+
+	for ii := 0; ii < batch_; ii++ {
+		rprobs := make([]*dlframework.Feature, featuresLen)
+		for jj := 0; jj < featuresLen; j++ {
+			rprobs[jj] = feature.New(
+				feature.ClassificationIndex(int32(jj)),
+				feature.ClassifiationLabel(labels[jj]),
+				feature.Probability(output[ii*featuresLen+jj]),
+			)
+		}
+		sort.Sort(dlframework.Features(rprobs))
+		features[ii] = rprobs
+	}
+
+	top1 := features[0][0]
+	return top1.GetClassification().GetLabel(), nil
+
+	// parse it based on go-caffe2 example and write out features and featuresLen
+	// fetch label using labels and slice arrays
+	// sort Features
+	// pick out the best one
+	//return float32(slice[4]), nil
+
 }
 
 func Close(p *PredictorData) {
