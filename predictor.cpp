@@ -49,15 +49,10 @@ class Predictor {
 
 Predictor::Predictor(const string &model_file, int batch, int mode) {
   /* Load the network. */
-  // Tflite uses FlatBufferModel format to store/access model instead of 
-	// protobuf unlike tensorflow
-  // Building from file path (not feasible directly, may have to load from
-	// assets, store it at some other location and if possible pass that path)
+  // Tflite uses FlatBufferModel format to store/access model instead of protobuf unlike tensorflow
 	char* model_file_char = const_cast<char*>(model_file.c_str());
 	net_ = tflite::FlatBufferModel::BuildFromFile(model_file_char);
 
-	//net_ = tflite::FlatBufferModel::BuildFromBuffer(model_file, strlen(model_file));
-  
 	assert(net_ != nullptr);
   mode_ = mode;
   batch_ = batch;
@@ -66,11 +61,9 @@ Predictor::Predictor(const string &model_file, int batch, int mode) {
 void Predictor::Predict(float* inputData) {
 
 	// build interpreter
-	// Note: one can have multiple interpreters running the same FlatBuffer
-	// model, therefore, we create an interpeter for every call of Predict()
-	// rather than one for the Predictor
-	// Also, one can add customized operators by rebuilding
-	// thge resolver with their own operator definitions
+	// Note: one can have multiple interpreters running the same FlatBuffer model, 
+	// therefore, we create an interpeter for every call of Predict() rather than one for the Predictor
+	// Also, one can add customized operators by rebuilding the resolver with their own operator definitions
 	tflite::ops::builtin::BuiltinOpResolver resolver;
 	std::unique_ptr<tflite::Interpreter> interpreter;
 	tflite::InterpreterBuilder(*net_, resolver)(&interpreter);
@@ -106,9 +99,7 @@ void Predictor::Predict(float* inputData) {
 		exit(1);
 	}
 
-	//pred_len_ = result_->size/batch_;
-	// Note: TfLiteTensor does not provide a size() API call
-	// which means we have to fetch the number of bytes the tensor
+	// Note: TfLiteTensor does not provide a size() API call which means we have to fetch the number of bytes the tensor
 	// has and divide it by 4 since we assume float is 4 bytes long
 	// Potential Bug location
 	pred_len_ = result_->bytes/(4*batch_);
@@ -196,7 +187,6 @@ int GetPredLenTflite(PredictorContext pred) {
   if (predictor == nullptr) {
     return 0;
   }
-  //predictor->pred_len_ = predictor->result_->dims->size;
   return predictor->pred_len_;
 }
 
