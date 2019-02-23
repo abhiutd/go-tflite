@@ -144,8 +144,10 @@ const float*GetPredictionsTflite(PredictorContext pred) {
 	if (predictor == nullptr) {
 		return nullptr;
 	}
-
-	return predictor->result_->data.f;
+	if(predictor->result_ == nullptr) {
+		throw std::runtime_error("expected a non-nil result");	
+	}
+	return (float*)predictor->result_->data.f;
 }
 
 void DeleteTflite(PredictorContext pred) {
