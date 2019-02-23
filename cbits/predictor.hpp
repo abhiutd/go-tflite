@@ -9,8 +9,7 @@ extern "C" {
 
 typedef void *PredictorContext;
 
-PredictorContext NewTflite(char *model_file, int batch,
-                          int mode);
+PredictorContext NewTflite(char *model_file, int batch, int mode);
 
 void SetModeTflite(int mode);
 

@@ -14,7 +14,7 @@ import (
 	"bufio"
 
 	"github.com/anthonynsimon/bild/imgio"
-  "github.com/anthonynsimon/bild/transform"
+	"github.com/anthonynsimon/bild/transform"
 	"github.com/Unknwon/com"
 	"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
@@ -40,12 +40,12 @@ type PredictorData struct {
 
 // make mode and batch public
 func (pd *PredictorData) Inc() {
-   pd.mode++
-   pd.batch++
+	pd.mode++
+	pd.batch++
 }
 
 func NewPredictorData() *PredictorData {
-     return &PredictorData{}
+	return &PredictorData{}
 }
 
 func New(model string, mode, batch int) (*PredictorData, error) {
@@ -71,13 +71,13 @@ func New(model string, mode, batch int) (*PredictorData, error) {
 	}
 
 	return &PredictorData{
-		ctx: C.NewTflite(
+			ctx: C.NewTflite(
 			C.CString(modelFile),
 			C.int(batch),
 			C.int(mode),
-		),
-		mode:	mode,
-		batch:	batch,
+			),
+			mode:	mode,
+			batch:	batch,
 	}, nil
 }
 
@@ -90,11 +90,11 @@ func SetUseGPU() {
 }
 
 func SetUseDSP() {
-   C.SetModeTflite(C.int(DSPMode))
+	C.SetModeTflite(C.int(DSPMode))
  }
 
 func SetUseVisualCore() {
-   C.SetModeTflite(C.int(VisualCoreMode))
+	C.SetModeTflite(C.int(VisualCoreMode))
 }
 
 func init() {
@@ -120,13 +120,13 @@ func ReadPredictionOutput(p *PredictorData, labelFile string) (string, error) {
 
 	batchSize := p.batch
 	if batchSize == 0 {
-     return "", errors.New("null batch")
-  }
+		return "", errors.New("null batch")
+	}
 
 	predLen := int(C.GetPredLenTflite(p.ctx))
 	if predLen == 0 {
-      return "", errors.New("null predLen")
-  }
+		return "", errors.New("null predLen")
+	}
 	length := batchSize * predLen
 	if p.ctx == nil {
 		return "", errors.New("empty predictor context")
@@ -151,7 +151,7 @@ func ReadPredictionOutput(p *PredictorData, labelFile string) (string, error) {
 	}
 
 	features := make([]dlframework.Features, batchSize)
-  featuresLen := len(slice) / batchSize
+	featuresLen := len(slice) / batchSize
 
 	for ii := 0; ii < batchSize; ii++ {
 		rprobs := make([]*dlframework.Feature, featuresLen)
@@ -160,7 +160,7 @@ func ReadPredictionOutput(p *PredictorData, labelFile string) (string, error) {
 				feature.ClassificationIndex(int32(jj)),
 				feature.ClassificationLabel(labels[jj]),
 				feature.Probability(slice[ii*featuresLen+jj]),
-			)
+				)
 		}
 		sort.Sort(dlframework.Features(rprobs))
 		features[ii] = rprobs

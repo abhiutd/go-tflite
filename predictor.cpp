@@ -31,35 +31,34 @@ using std::string;
 using Prediction = std::pair<int, float>;
 
 /*
-  Predictor class takes in model file (converted into .tflite from the original .pb file
-  using tflite_convert CLI tool), batch size and device mode for inference
+	Predictor class takes in model file (converted into .tflite from the original .pb file
+	using tflite_convert CLI tool), batch size and device mode for inference
 */
 class Predictor {
-  public:
-    Predictor(const string &model_file, int batch, int mode);
-    void Predict(float* inputData);
+	public:
+		Predictor(const string &model_file, int batch, int mode);
+		void Predict(float* inputData);
 
-    std::unique_ptr<tflite::FlatBufferModel> net_;
-    int width_, height_, channels_;
-    int batch_;
-    int pred_len_ = 0;
-    int mode_ = 0;
-    TfLiteTensor* result_;
+		std::unique_ptr<tflite::FlatBufferModel> net_;
+		int width_, height_, channels_;
+		int batch_;
+		int pred_len_ = 0;
+		int mode_ = 0;
+		TfLiteTensor* result_;
 };
 
 Predictor::Predictor(const string &model_file, int batch, int mode) {
-  /* Load the network. */
-  // Tflite uses FlatBufferModel format to store/access model instead of protobuf unlike tensorflow
+	/* Load the network. */
+	// Tflite uses FlatBufferModel format to store/access model instead of protobuf unlike tensorflow
 	char* model_file_char = const_cast<char*>(model_file.c_str());
 	net_ = tflite::FlatBufferModel::BuildFromFile(model_file_char);
 
 	assert(net_ != nullptr);
-  mode_ = mode;
-  batch_ = batch;
+	mode_ = mode;
+	batch_ = batch;
 }
 
 void Predictor::Predict(float* inputData) {
-
 	// build interpreter
 	// Note: one can have multiple interpreters running the same FlatBuffer model, 
 	// therefore, we create an interpeter for every call of Predict() rather than one for the Predictor
@@ -106,87 +105,86 @@ void Predictor::Predict(float* inputData) {
 
 }
 
-PredictorContext NewTflite(char *model_file, int batch,
-                          int mode) {
-  try {
-    int mode_temp = 0;
-    if (mode == 1) {
-      mode_temp = 1;
-    }
-    const auto ctx = new Predictor(model_file, batch,
+PredictorContext NewTflite(char *model_file, int batch, int mode) {
+	try {
+		int mode_temp = 0;
+		if (mode == 1) {
+			mode_temp = 1;
+		}
+		const auto ctx = new Predictor(model_file, batch,
                                    mode_temp);
-    return (void *)ctx;
-  } catch (const std::invalid_argument &ex) {
-    //LOG(ERROR) << "exception: " << ex.what();
-    errno = EINVAL;
-    return nullptr;
-  }
+		return (void *)ctx;
+	}catch (const std::invalid_argument &ex) {
+		//LOG(ERROR) << "exception: " << ex.what();
+		errno = EINVAL;
+		return nullptr;
+	}
 
 }
 
 void SetModeTflite(int mode) {
-  if(mode == 1) {
+	if(mode == 1) {
 		// Do nothing as of now
-  }
+	}
 }
 
 void InitTflite() {}
 
 void PredictTflite(PredictorContext pred, float* inputData) {
-  auto predictor = (Predictor *)pred;
-  if (predictor == nullptr) {
-    return;
-  }
-  predictor->Predict(inputData);
-  return;
+	auto predictor = (Predictor *)pred;
+	if (predictor == nullptr) {
+		return;
+	}
+	predictor->Predict(inputData);
+	return;
 }
 
 const float*GetPredictionsTflite(PredictorContext pred) {
-  auto predictor = (Predictor *)pred;
-  if (predictor == nullptr) {
-    return nullptr;
-  }
+	auto predictor = (Predictor *)pred;
+	if (predictor == nullptr) {
+		return nullptr;
+	}
 
-  return predictor->result_->data.f;
+	return predictor->result_->data.f;
 }
 
 void DeleteTflite(PredictorContext pred) {
-  auto predictor = (Predictor *)pred;
-  if (predictor == nullptr) {
-    return;
-  }
-  delete predictor;
+	auto predictor = (Predictor *)pred;
+	if (predictor == nullptr) {
+		return;
+	}
+	delete predictor;
 }
 
 int GetWidthTflite(PredictorContext pred) {
-  auto predictor = (Predictor *)pred;
-  if (predictor == nullptr) {
-    return 0;
-  }
-  return predictor->width_;
+	auto predictor = (Predictor *)pred;
+	if (predictor == nullptr) {
+		return 0;
+	}
+	return predictor->width_;
 }
 
 int GetHeightTflite(PredictorContext pred) {
-  auto predictor = (Predictor *)pred;
-  if (predictor == nullptr) {
-    return 0;
-  }
-  return predictor->height_;
+	auto predictor = (Predictor *)pred;
+	if (predictor == nullptr) {
+		return 0;
+	}
+	return predictor->height_;
 }
 
 int GetChannelsTflite(PredictorContext pred) {
-  auto predictor = (Predictor *)pred;
-  if (predictor == nullptr) {
-    return 0;
-  }
-  return predictor->channels_;
+	auto predictor = (Predictor *)pred;
+	if (predictor == nullptr) {
+		return 0;
+	}
+	return predictor->channels_;
 }
 
 int GetPredLenTflite(PredictorContext pred) {
-  auto predictor = (Predictor *)pred;
-  if (predictor == nullptr) {
-    return 0;
-  }
-  return predictor->pred_len_;
+	auto predictor = (Predictor *)pred;
+	if (predictor == nullptr) {
+		return 0;
+	}
+	return predictor->pred_len_;
 }
 
