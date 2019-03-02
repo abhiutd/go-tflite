@@ -30,11 +30,6 @@ using std::string;
 /* Pair (label, confidence) representing a prediction. */
 using Prediction = std::pair<int, float>;
 
-// DEBUG
-float temp[2];
-// DEBUG
-
-
 /*
 	Predictor class takes in model file (converted into .tflite from the original .pb file
 	using tflite_convert CLI tool), batch size and device mode for inference
@@ -45,6 +40,7 @@ class Predictor {
 		void Predict(float* inputData);
 
 		std::unique_ptr<tflite::FlatBufferModel> net_;
+		std::unique_ptr<tflite::Interpreter> interpreter;
 		int width_, height_, channels_;
 		int batch_;
 		int pred_len_ = 0;
@@ -57,22 +53,21 @@ Predictor::Predictor(const string &model_file, int batch, int mode) {
 	// Tflite uses FlatBufferModel format to store/access model instead of protobuf unlike tensorflow
 	char* model_file_char = const_cast<char*>(model_file.c_str());
 	net_ = tflite::FlatBufferModel::BuildFromFile(model_file_char);
-
+	// build interpreter
+  // Note: one can have multiple interpreters running the same FlatBuffer model,
+  // therefore, we create an interpeter for every call of Predict() rather than one for the Predictor
+  // Also, one can add customized operators by rebuilding the resolver with their own operator definitions
+  tflite::ops::builtin::BuiltinOpResolver resolver;
+  tflite::InterpreterBuilder(*net_, resolver)(&interpreter);
+	
 	assert(net_ != nullptr);
+	assert(interpreter != nullptr);
+
 	mode_ = mode;
 	batch_ = batch;
 }
 
 void Predictor::Predict(float* inputData) {
-	// build interpreter
-	// Note: one can have multiple interpreters running the same FlatBuffer model, 
-	// therefore, we create an interpeter for every call of Predict() rather than one for the Predictor
-	// Also, one can add customized operators by rebuilding the resolver with their own operator definitions
-	tflite::ops::builtin::BuiltinOpResolver resolver;
-	std::unique_ptr<tflite::Interpreter> interpreter;
-	tflite::InterpreterBuilder(*net_, resolver)(&interpreter);
-	assert(interpreter != nullptr);
-
 	// set number of threads to 1 for now
 	interpreter->SetNumThreads(1);
 
@@ -119,7 +114,6 @@ void Predictor::Predict(float* inputData) {
 	if(result_->data.f == nullptr) {
 		throw std::runtime_error("expected a non-nil result in Predict()");
 	}
-
 }
 
 PredictorContext NewTflite(char *model_file, int batch, int mode) {
@@ -171,15 +165,11 @@ float* GetPredictionsTflite(PredictorContext pred) {
 		throw std::runtime_error("expected a non-nil result->data.f");
 	}
 
-	// DEBUG
-	temp[0] = 0;
-	temp[1] = 1;
 	if(predictor->result_->type == kTfLiteFloat32) {
 		return predictor->result_->data.f;
 	}else{
-		return temp;
+		return nullptr;
 	}
-
 }
 
 void DeleteTflite(PredictorContext pred) {
