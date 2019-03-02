@@ -17,7 +17,7 @@ void InitTflite();
 
 void PredictTflite(PredictorContext pred, float *inputData);
 
-const float *GetPredictionsTflite(PredictorContext pred);
+float* GetPredictionsTflite(PredictorContext pred);
 
 void DeleteTflite(PredictorContext pred);
 

@@ -30,6 +30,11 @@ using std::string;
 /* Pair (label, confidence) representing a prediction. */
 using Prediction = std::pair<int, float>;
 
+// DEBUG
+float temp[2];
+// DEBUG
+
+
 /*
 	Predictor class takes in model file (converted into .tflite from the original .pb file
 	using tflite_convert CLI tool), batch size and device mode for inference
@@ -101,7 +106,19 @@ void Predictor::Predict(float* inputData) {
 	// Note: TfLiteTensor does not provide a size() API call which means we have to fetch the number of bytes the tensor
 	// has and divide it by 4 since we assume float is 4 bytes long
 	// Potential Bug location
-	pred_len_ = result_->bytes/(4*batch_);
+	//pred_len_ = result_->bytes/(4*batch_);
+	assert(result_->dims->size == 2);
+	assert(result_->dims->data[0] == 1);
+	pred_len_ = result_->dims->data[1];
+	// DEBUG for result_
+	if(!(result_->type == kTfLiteFloat32)) {
+		fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__);
+    exit(1);
+	}
+	assert(result_->type == kTfLiteFloat32);
+	if(result_->data.f == nullptr) {
+		throw std::runtime_error("expected a non-nil result in Predict()");
+	}
 
 }
 
@@ -139,7 +156,7 @@ void PredictTflite(PredictorContext pred, float* inputData) {
 	return;
 }
 
-const float*GetPredictionsTflite(PredictorContext pred) {
+float* GetPredictionsTflite(PredictorContext pred) {
 	auto predictor = (Predictor *)pred;
 	if (predictor == nullptr) {
 		return nullptr;
@@ -147,7 +164,22 @@ const float*GetPredictionsTflite(PredictorContext pred) {
 	if(predictor->result_ == nullptr) {
 		throw std::runtime_error("expected a non-nil result");	
 	}
-	return (float*)predictor->result_->data.f;
+	if(!(predictor->result_->type == kTfLiteFloat32)) {
+     throw std::runtime_error("reuslt_->type is not Float32");
+  }
+	if(predictor->result_->data.f == nullptr) {
+		throw std::runtime_error("expected a non-nil result->data.f");
+	}
+
+	// DEBUG
+	temp[0] = 0;
+	temp[1] = 1;
+	if(predictor->result_->type == kTfLiteFloat32) {
+		return predictor->result_->data.f;
+	}else{
+		return temp;
+	}
+
 }
 
 void DeleteTflite(PredictorContext pred) {
