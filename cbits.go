@@ -9,9 +9,9 @@ import (
 	"unsafe"
 	//"image"
 	//"path/filepath"
-	"sort"
-	"os"
 	"bufio"
+	"os"
+	"sort"
 
 	//"github.com/anthonynsimon/bild/imgio"
 	//"github.com/anthonynsimon/bild/transform"
@@ -20,22 +20,21 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rai-project/dlframework"
 	"github.com/rai-project/dlframework/framework/feature"
-
 )
 
 // accelerator modes
 const (
-	CPUMode = 0
-	GPUMode = 1
-	DSPMode = 2
+	CPUMode        = 0
+	GPUMode        = 1
+	DSPMode        = 2
 	VisualCoreMode = 3
 )
 
 // struct for keeping hold of predictor
 type PredictorData struct {
-	ctx	C.PredictorContext
-	mode	int
-	batch	int
+	ctx   C.PredictorContext
+	mode  int
+	batch int
 }
 
 // make mode and batch public
@@ -71,13 +70,13 @@ func New(model string, mode, batch int) (*PredictorData, error) {
 	}
 
 	return &PredictorData{
-			ctx: C.NewTflite(
+		ctx: C.NewTflite(
 			C.CString(modelFile),
 			C.int(batch),
 			C.int(mode),
-			),
-			mode:	mode,
-			batch:	batch,
+		),
+		mode:  mode,
+		batch: batch,
 	}, nil
 }
 
@@ -91,7 +90,7 @@ func SetUseGPU() {
 
 func SetUseDSP() {
 	C.SetModeTflite(C.int(DSPMode))
- }
+}
 
 func SetUseVisualCore() {
 	C.SetModeTflite(C.int(VisualCoreMode))
@@ -161,7 +160,7 @@ func ReadPredictionOutput(p *PredictorData, labelFile string) (string, error) {
 				feature.ClassificationIndex(int32(jj)),
 				feature.ClassificationLabel(labels[jj]),
 				feature.Probability(slice[ii*featuresLen+jj]),
-				)
+			)
 		}
 		sort.Sort(dlframework.Features(rprobs))
 		features[ii] = rprobs
